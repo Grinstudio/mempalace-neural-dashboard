@@ -68,6 +68,66 @@ def result_key(item: Dict) -> str:
     return f"{wing}|{room}|{source}"
 
 
+def short_text(value: str, max_len: int = 320) -> str:
+    text = (value or "").replace("\r", " ").replace("\n", " ").strip()
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 1] + "..."
+
+
+def _line_number_from_pos(text: str, pos: int) -> int:
+    if pos <= 0:
+        return 1
+    return text.count("\n", 0, pos) + 1
+
+
+def infer_source_location(item: Dict, workspace_root: Path, file_cache: Dict[str, List[Path]]) -> Dict:
+    source_file = str(item.get("source_file", "") or "")
+    if not source_file:
+        return {}
+
+    file_name = Path(source_file).name
+    if not file_name:
+        return {}
+    key = file_name.lower()
+    if key not in file_cache:
+        try:
+            file_cache[key] = list(workspace_root.rglob(file_name))
+        except Exception:
+            file_cache[key] = []
+
+    snippet = str(item.get("text", "") or "")
+    snippet_line = ""
+    for ln in snippet.splitlines():
+        clean = ln.strip()
+        if clean:
+            snippet_line = clean
+            break
+
+    for path in file_cache.get(key, []):
+        if not path.is_file():
+            continue
+        try:
+            body = path.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            continue
+        pos = -1
+        if snippet_line:
+            pos = body.find(snippet_line)
+        if pos < 0 and snippet:
+            pos = body.find(snippet[: min(len(snippet), 90)])
+        if pos < 0:
+            continue
+        start_line = _line_number_from_pos(body, pos)
+        line_span = max(0, snippet.count("\n"))
+        return {
+            "source_path": str(path),
+            "line_start": int(start_line),
+            "line_end": int(start_line + line_span),
+        }
+    return {}
+
+
 def recency_bonus(entry: Dict) -> float:
     last_positive = parse_ts(str(entry.get("last_positive", "")))
     if not last_positive:
@@ -336,6 +396,9 @@ def main() -> None:
         print("No results.")
         return
 
+    workspace_root = Path(__file__).resolve().parent
+    file_cache: Dict[str, List[Path]] = {}
+
     help_scores = load_help_scores(Path(args.help_scores_path))
 
     sem_w, help_w, rec_w = 0.70, 0.20, 0.10
@@ -380,6 +443,7 @@ def main() -> None:
     candidate_preview = []
     for item in candidates[: min(len(candidates), max(args.top_k * 2, 16))]:
         key = result_key(item)
+        loc = infer_source_location(item, workspace_root=workspace_root, file_cache=file_cache)
         candidate_preview.append(
             {
                 "key": key,
@@ -389,6 +453,10 @@ def main() -> None:
                 "similarity": item.get("similarity"),
                 "help_score": item.get("_help_raw", 0.0),
                 "blended_score": item.get("_blended", 0.0),
+                "text": short_text(str(item.get("text", "") or "")),
+                "source_path": loc.get("source_path"),
+                "line_start": loc.get("line_start"),
+                "line_end": loc.get("line_end"),
                 "selected": key in selected_keys,
             }
         )
@@ -417,6 +485,28 @@ def main() -> None:
         ],
     }
 
+    event_results = []
+    for i in reranked:
+        loc = infer_source_location(i, workspace_root=workspace_root, file_cache=file_cache)
+        full_text = str(i.get("text", "") or "")
+        event_results.append(
+            {
+                "key": result_key(i),
+                "source_file": i.get("source_file"),
+                "wing": i.get("wing"),
+                "room": i.get("room"),
+                "similarity": i.get("similarity"),
+                "help_score": i.get("_help_raw", 0.0),
+                "blended_score": i.get("_blended", 0.0),
+                # Keep full snippet for node popup expand/collapse.
+                "text": full_text,
+                "text_preview": short_text(full_text),
+                "source_path": loc.get("source_path"),
+                "line_start": loc.get("line_start"),
+                "line_end": loc.get("line_end"),
+            }
+        )
+
     event = {
         "timestamp": utc_now_iso(),
         "query": args.query,
@@ -429,18 +519,7 @@ def main() -> None:
         "unique_sources": len({i.get("source_file") for i in reranked}),
         "unique_wings": len({i.get("wing") for i in reranked}),
         "candidate_preview": candidate_preview,
-        "results": [
-            {
-                "key": result_key(i),
-                "source_file": i.get("source_file"),
-                "wing": i.get("wing"),
-                "room": i.get("room"),
-                "similarity": i.get("similarity"),
-                "help_score": i.get("_help_raw", 0.0),
-                "blended_score": i.get("_blended", 0.0),
-            }
-            for i in reranked
-        ],
+        "results": event_results,
     }
 
     write_jsonl(Path(args.events_path), event)

@@ -10,9 +10,9 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Dict, Iterable, List
 
-DEFAULT_TRANSCRIPTS = (
-    r"C:\Users\user\.cursor\projects\d-PROJECTS-Minupidu-FTP\agent-transcripts"
-)
+# Default to Cursor projects root for portability.
+# You can override this path from the dashboard sidebar.
+DEFAULT_TRANSCRIPTS = str(Path.home() / ".cursor" / "projects")
 DEFAULT_ANALYTICS_DIR = Path(r".mempalace-analytics")
 DEFAULT_FEEDBACK = DEFAULT_ANALYTICS_DIR / "feedback.jsonl"
 DEFAULT_SEARCH_EVENTS = DEFAULT_ANALYTICS_DIR / "search_events.jsonl"

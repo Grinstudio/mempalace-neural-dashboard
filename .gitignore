@@ -24,3 +24,4 @@ mempalace-indexing.json
 **/*.webp
 **/*.gif
 **/*.pdf
+!MemPalace_Analytics.png

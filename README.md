@@ -1,198 +1,217 @@
 # MemPalace Neural Dashboard for Cursor
 
-**A visual AI memory cockpit for Cursor**: fast search, smarter route selection, anti-stickiness protection, and realtime analytics you can understand at a glance.
+Local-first memory toolkit for Cursor: smart retrieval, route diversity control, feedback learning, and a visual dashboard that explains what is happening.
 
-## The Story
+![MemPalace Analytics Dashboard](./MemPalace_Analytics.png)
 
-I built this project on top of the MemPalace idea shared under the `milla-jovovich` project identity, with a clear Fifth Element spirit: turn raw memory into a living, navigable brain map.
+## Why This Exists
 
-I extended that idea into a more practical and more beautiful workflow for real projects:
+This project is built on the MemPalace idea associated with Mila Jovovich (`milla-jovovich`) and then extended into a practical day-to-day workflow for real projects.
 
-- clearer memory routing,
-- adaptive anti-stickiness logic,
-- feedback reinforcement (`helped` / `not helped`),
-- a realtime dashboard that shows what the memory system is doing.
+In simple words:
 
-## What This Tool Does
+- Cursor gets a memory layer.
+- Memory quality is observable (you can see routes, not guess them).
+- The system learns from outcomes (`helped` / `not helped`), not only from similarity.
 
-I use this toolkit to give Cursor a structured memory layer so it can work better in any project type:
+Think of it like this:
 
-- remember code and chat context across sessions,
-- avoid repeating the same narrow memory route,
-- surface alternative paths during search,
-- learn from outcomes (`helped` and `minutes_saved`),
-- explain memory decisions visually in a dashboard.
+- **Vector DB** is the library.
+- **Smart search** is the librarian.
+- **Dashboard** is the control room with cameras.
+- **Feedback** is the training loop that makes the librarian better over time.
 
-I use it for:
-- software engineering projects of any stack,
-- product discovery and whiteboarding sessions,
-- architecture planning,
-- debugging and incident retrospectives,
-- long-running team projects where context continuity matters.
+## What The Tool Does
 
-## Why It Matters
-
-Without a memory strategy, AI assistants can:
-
-- forget earlier architecture decisions,
-- overfit to one familiar source,
-- return technically correct but less useful answers.
-
-I address that with **smart retrieval + reinforcement + observability**.
-
-## Core Features
-
-- **Smart Search Engine**
-  - semantic retrieval + `help_score` + recency blending,
-  - MMR diversity reranking,
-  - source cap,
-  - explore injection,
-  - adaptive anti-stickiness tuning.
-
-- **Neural Visualization**
-  - Neural Map Lite (`wing -> room -> source`),
-  - live route stream for the latest query,
-  - selected routes vs alternative routes view.
-
-- **Reinforcement Loop ("Dopamine" Model)**
-  - `helped=yes` raises route confidence,
-  - `helped=no` lowers route confidence,
-  - `minutes_saved` increases practical value weighting.
-
-- **Realtime Product Dashboard**
-  - stickiness risk trend,
+- Indexes your selected folders (code and/or conversations) into MemPalace memory.
+- Runs smart retrieval with anti-stickiness logic:
+  - semantic relevance,
+  - diversity (MMR),
+  - source caps,
+  - adaptive exploration.
+- Logs route telemetry to analytics files.
+- Shows retrieval behavior in a dashboard:
+  - stickiness trend,
   - alternative-route ratio,
-  - adaptive controller state (`relaxed/stable/active/aggressive`),
-  - route-level telemetry.
+  - adaptive controller state,
+  - neural path simulation.
+- Learns from feedback:
+  - `helped=yes|no|unknown`,
+  - optional `minutes_saved`.
 
-## Very Simple Setup (Windows)
+## Who This Is For
 
-### 1) Choose folders to index (one-time setup)
+- People using Cursor in long-running projects.
+- Teams that want context continuity.
+- Non-programmers who still need to understand what the AI is doing.
+- Whiteboarding and decision-tracking workflows where "why this answer" matters.
+
+## Quick Start (Windows, from zero)
+
+### 1) Prepare environment
+
+- Open PowerShell in this folder.
+- Make sure MemPalace and Python environment are available.
+- If your project uses the provided venv layout, commands below work as-is.
+
+### 2) Choose what to index (one-time)
 
 ```powershell
 .\mempalace-setup-indexing.ps1
 ```
 
-This asks you which folders to scan, which `wing` name to use for each folder, and saves config to local `mempalace-indexing.json`.
+What happens:
 
-### 2) Refresh memory from your selected folders
+- You choose folders.
+- You assign each folder a `wing` name.
+- Config is saved to `mempalace-indexing.json`.
+
+### 3) Build/refresh memory index
 
 ```powershell
 .\mempalace-refresh-index.ps1
 ```
 
-This is generic for any project structure.
-
-Optional shortcuts (if your repo has these helper scripts):
+Optional shortcuts:
 
 ```powershell
 .\mempalace-refresh-child.ps1
 .\mempalace-refresh-chats.ps1
+.\mempalace-refresh-tooling.ps1
 ```
 
-If your setup includes a dedicated project refresh script with optional scope:
+### 4) Run one smart search
 
 ```powershell
-.\mempalace-refresh-child.ps1 -ChildOnly
+.\.venv-mempalace\Scripts\python.exe .\mempalace-smart-search.py "your query" --top-k 10 --candidate-k 40
 ```
 
-### 3) Run one smart search
+This creates route telemetry in `.mempalace-analytics/`.
 
-```powershell
-.\.venv-mempalace\Scripts\python.exe .\mempalace-smart-search.py "your query here" --top-k 10 --candidate-k 40
-```
-
-### 4) Start the dashboard
+### 5) Start dashboard
 
 ```powershell
 .\mempalace-dashboard.ps1
 ```
 
-### 5) Open the dashboard in browser
-
 Open:
 
 - [http://localhost:8501](http://localhost:8501)
 
-Dashboard URL: [http://localhost:8501](http://localhost:8501)
+This is the main board URL.
 
-### 6) Run automatic maintenance
+## Cursor Setup (Important)
+
+To make the workflow fully useful inside Cursor, install both:
+
+- Skill: `.cursor/skills/mempalace-neural-memory/SKILL.md`
+- Rule: `.cursor/rules/mempalace-priority-workflow.mdc`
+
+Practical setup:
+
+1. Copy these files into your project `.cursor` folder (or keep them in this repo and reuse).
+2. Ensure your Cursor workflow actually uses the skill + rule.
+3. Keep feedback logging in your normal routine (see below).
+
+Without this step, you still have scripts and dashboard, but the "learn from daily usage" loop is weaker.
+
+## Feedback Loop (Most Important Part)
+
+MemPalace improves when outcomes are logged.
+
+Log feedback after meaningful tasks:
+
+```powershell
+.\mempalace-log-feedback.ps1 -Helped yes -MinutesSaved 8 -Note "The proposed route solved the issue quickly"
+```
+
+Use values:
+
+- `-Helped yes` when result was useful.
+- `-Helped no` when result was misleading.
+- `-Helped unknown` when unclear.
+- `-MinutesSaved` if you can estimate time impact.
+
+Why this matters:
+
+- Repeated helpful routes get stronger.
+- Unhelpful routes get weaker.
+- Ranking becomes more practical over time.
+
+## Daily Workflow (Simple)
+
+1. Ask Cursor your normal task question.
+2. Run smart retrieval (directly or through your routine wrappers).
+3. Check dashboard when needed:
+  - Are routes diverse?
+  - Is stickiness rising?
+  - Is adaptive controller stabilizing behavior?
+4. Log feedback.
+5. Repeat.
+
+Over time, the system becomes better tuned to your real project context.
+
+## Dashboard: What To Watch First
+
+If you are new, focus on these four:
+
+- **Sessions with memory (unique)**  
+Shows if memory is truly being used in real sessions.
+- **Route events**  
+Shows whether you are getting real route telemetry (`smart`) vs only heartbeat updates (`touch`).
+- **Stickiness risk**  
+Higher values mean retrieval repeats too much from same sources.
+- **Noise level**  
+Quick health state (`low` / `moderate` / `high`) for maintenance decisions.
+
+## Suggested GitHub Repository Description
+
+Use this short description on GitHub:
+
+`Local-first MemPalace toolkit for Cursor: smart memory retrieval, anti-stickiness routing, feedback learning, and a visual dashboard.`
+
+## Maintenance
+
+Manual:
+
+```powershell
+.\mempalace-maintenance.ps1 -Mode apply
+```
+
+Automatic:
 
 ```powershell
 .\mempalace-maintenance.ps1 -Mode auto
 ```
 
-This checks thresholds and only archives/trims when needed.
-I can also manage this directly from the dashboard bottom section:
-- live noise score,
-- auto-optimization trigger when threshold is exceeded,
-- `Optimize database now` manual button.
+You can also trigger optimization from the dashboard:
 
-## Cursor Setup (Required)
+- `Optimize database now`
+- automatic optimization when noise threshold is exceeded (if enabled)
 
-To make the feedback loop work in Cursor, install both:
+## File Guide
 
-- Skill: `.cursor/skills/mempalace-neural-memory/SKILL.md`
-- Rule: `.cursor/rules/mempalace-priority-workflow.mdc`
-
-After enabling them, keep this behavior in your workflow:
-
-- At the end of meaningful tasks, Cursor should return quick feedback status:
-  - `helped=yes|no|unknown`
-  - optional `minutes_saved`
-- Then log it:
-
-```powershell
-.\mempalace-log-feedback.ps1 -Helped yes -MinutesSaved 8 -Note "Answer path was useful"
-```
-
-This is what trains route quality over time (not only semantic match, but practical usefulness).
-
-## How to Use Daily (Non-Technical)
-
-1. I ask Cursor a normal task question.
-2. I let smart search propose relevant and alternative memory routes.
-3. I check the dashboard when I need to review route quality.
-4. After I use the result, I log feedback:
-
-```powershell
-.\mempalace-log-feedback.ps1 -Helped yes -MinutesSaved 10 -Note "Correct fix path found quickly"
-```
-
-5. I repeat this loop, and the system improves from real outcomes.
-
-## Generic Use Cases
-
-- **Any codebase memory layer**: backend, frontend, mobile, desktop, infra, data workflows.
-- **Whiteboarding and ideation**: keep idea evolution, decisions, and alternatives in one retrievable memory graph.
-- **Team continuity**: new team members can quickly recover context from previous sessions and decisions.
-- **Decision quality tracking**: see whether memory routes are helping or hurting over time.
-
-## File Map
-
-- `mempalace-smart-search.py` - memory retrieval and route selection logic.
-- `mempalace-dashboard.py` - realtime visual cockpit.
+- `mempalace-smart-search.py` - smart retrieval and route selection.
+- `mempalace-dashboard.py` - analytics + neural simulator UI.
 - `mempalace_analytics.py` - shared analytics helpers.
-- `mempalace-feedback.py` - feedback and score updates.
+- `mempalace-feedback.py` - feedback processing logic.
+- `mempalace-route-pulse.py` - lightweight heartbeat events.
+- `mempalace-maintenance.py` - telemetry cleanup/maintenance logic.
 - `mempalace-dashboard.ps1` - dashboard launcher.
-- `mempalace-setup-indexing.ps1` - interactive folder selection for indexing.
-- `mempalace-refresh-index.ps1` - refresh index from saved folder list.
-- `mempalace-refresh-tooling.ps1` - focused tooling-code refresh (if present in your setup).
-- `mempalace-refresh-child.ps1` - project code refresh shortcut (optional, repo-specific name).
-- `mempalace-refresh-chats.ps1` - transcript refresh shortcut (optional).
-- `.cursor/skills/mempalace-neural-memory/SKILL.md` - Cursor skill for this workflow.
+- `mempalace-setup-indexing.ps1` - interactive index setup.
+- `mempalace-refresh-index.ps1` - refresh index from config.
+- `mempalace-log-feedback.ps1` - log usefulness feedback.
+- `.cursor/skills/mempalace-neural-memory/SKILL.md` - Cursor skill.
+- `.cursor/rules/mempalace-priority-workflow.mdc` - Cursor rule.
 
-## Data and Privacy
+## Privacy and Data
 
-- Local-first by design.
-- Runtime telemetry is stored in `.mempalace-analytics/`.
-- Local vector memory lives in `.mempalace-child/`.
-- Keep private transcripts and local stores out of public repos.
+- Local-first design.
+- Telemetry stays in `.mempalace-analytics/`.
+- Vector memory is stored locally in `.mempalace-child/`.
+- Do not publish local stores, private transcripts, or personal configs.
 
 ## License
 
-I publish this project as open source under the MIT License.
-
-You can use, copy, modify, publish, distribute, sublicense, and sell copies of the software, as long as the license notice is included.
-
-See `LICENSE` for full legal terms.
+This project is open source under the MIT License.
+See `LICENSE` for full legal text.

@@ -1,8 +1,17 @@
+param(
+    [string]$TranscriptsPath = ""
+)
+
 $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $python = Join-Path $projectRoot ".venv-mempalace\Scripts\python.exe"
-$transcriptsPath = "C:\Users\user\.cursor\projects\d-PROJECTS-Minupidu-FTP\agent-transcripts"
+$defaultTranscripts = Join-Path $env:USERPROFILE ".cursor\projects"
+if ([string]::IsNullOrWhiteSpace($TranscriptsPath)) {
+    $transcriptsPath = $defaultTranscripts
+} else {
+    $transcriptsPath = $TranscriptsPath
+}
 $palacePath = Join-Path $projectRoot ".mempalace-child\palace"
 
 if (-not (Test-Path $python)) {
