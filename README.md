@@ -1,125 +1,146 @@
 # MemPalace Neural Dashboard for Cursor
 
-A lightweight, production-friendly memory layer for Cursor workflows with realtime analytics, anti-stickiness search logic, and visual route mapping for AI memory decisions.
+**A visual AI memory cockpit for Cursor**: fast search, smarter route selection, anti-stickiness protection, and realtime analytics you can understand at a glance.
 
-This toolkit helps teams store and retrieve useful project context from both code and chat transcripts, then inspect how memory routes are selected over time.
+## The Story
 
-## Why This Project
+This project is inspired by the MemPalace idea shared under the `milla-jovovich` project identity, with a clear Fifth Element spirit: turn raw memory into a living, navigable brain map.
 
-AI assistants can lose context across sessions, repeat suboptimal paths, or overfit to a small set of memory chunks. This project solves that by combining:
+We extended that idea into a more practical and more beautiful workflow for real projects:
 
-- targeted project memory indexing,
-- smart reranking with diversity controls,
-- feedback-driven reinforcement (`help_score`),
-- visual telemetry for route quality and exploration behavior.
+- clearer memory routing,
+- adaptive anti-stickiness logic,
+- feedback reinforcement (`helped` / `not helped`),
+- a realtime dashboard that shows what the memory system is doing.
 
-## Key Features
+## What This Tool Does
 
-- Realtime Streamlit dashboard with auto-refresh.
-- Neural Map Lite (`wing -> room -> source`) for route observability.
-- Live route stream for the latest query path.
-- Alternative-route tracking and anti-stickiness metrics.
-- Smart search blending:
-  - semantic similarity,
-  - help score reinforcement,
-  - recency boost,
-  - MMR-based diversity,
-  - source-cap control,
-  - deterministic explore-injection.
-- Feedback loop to log usefulness and minutes saved.
-- Child-theme-first memory workflow (`themes/listeo-child`).
-- Cursor transcript mining support for linking request-to-code context.
+It gives Cursor a structured memory layer so it can work better in any project type:
 
-## Architecture Overview
+- remember code and chat context across sessions,
+- avoid repeating the same narrow memory route,
+- surface alternative paths during search,
+- learn from outcomes (`helped` and `minutes_saved`),
+- explain memory decisions visually in a dashboard.
 
-- `mempalace-smart-search.py` - smart retrieval + telemetry writer.
-- `mempalace-dashboard.py` - realtime analytics UI (Streamlit + Plotly).
-- `mempalace_analytics.py` - shared analytics helpers.
-- `mempalace-feedback.py` - feedback ingestion and score updates.
-- `mempalace-refresh-child.ps1` - refresh child-theme memory index.
-- `mempalace-refresh-chats.ps1` - refresh Cursor transcript memory index.
-- `themes/listeo-child/memory-cards/` - request-to-change-to-outcome trace cards.
+It is useful for:
+- software engineering projects of any stack,
+- product discovery and whiteboarding sessions,
+- architecture planning,
+- debugging and incident retrospectives,
+- long-running team projects where context continuity matters.
 
-## Requirements
+## Why It Matters
 
-- Windows PowerShell
-- Python 3.9+
-- Local MemPalace environment (`.venv-mempalace`)
-- Streamlit dependencies (`streamlit`, `plotly`, `pandas`, `streamlit-autorefresh`)
+Without a memory strategy, AI assistants can:
 
-## Quick Start
+- forget earlier architecture decisions,
+- overfit to one familiar source,
+- return technically correct but less useful answers.
 
-1. Refresh child-theme memory:
+This toolkit fixes that with **smart retrieval + reinforcement + observability**.
+
+## Core Features
+
+- **Smart Search Engine**
+  - semantic retrieval + `help_score` + recency blending,
+  - MMR diversity reranking,
+  - source cap,
+  - explore injection,
+  - adaptive anti-stickiness tuning.
+
+- **Neural Visualization**
+  - Neural Map Lite (`wing -> room -> source`),
+  - live route stream for the latest query,
+  - selected routes vs alternative routes view.
+
+- **Reinforcement Loop ("Dopamine" Model)**
+  - `helped=yes` raises route confidence,
+  - `helped=no` lowers route confidence,
+  - `minutes_saved` increases practical value weighting.
+
+- **Realtime Product Dashboard**
+  - stickiness risk trend,
+  - alternative-route ratio,
+  - adaptive controller state (`relaxed/stable/active/aggressive`),
+  - route-level telemetry.
+
+## Very Simple Setup (Windows)
+
+### 1) Refresh project code memory
 
 ```powershell
 .\mempalace-refresh-child.ps1
 ```
 
-2. Refresh Cursor chat memory:
+### 2) Refresh chat memory
 
 ```powershell
 .\mempalace-refresh-chats.ps1
 ```
 
-3. Run a smart search (writes telemetry events):
+### 3) Run one smart search
 
 ```powershell
 .\.venv-mempalace\Scripts\python.exe .\mempalace-smart-search.py "your query here" --palace-path "D:\PROJECTS\Minupidu\FTP\.mempalace-child\palace" --top-k 10 --candidate-k 40
 ```
 
-4. Launch dashboard:
+### 4) Start the dashboard
 
 ```powershell
 .\mempalace-dashboard.ps1
 ```
 
-5. Open:
+### 5) Open the dashboard in browser
+
+Go to:
 
 - [http://localhost:8501](http://localhost:8501)
 
-## Dashboard Highlights
+If users ask "where is the board?" -> this is the URL they need.
 
-- Session and memory usage KPIs.
-- Helpfulness and minutes-saved tracking.
-- Stickiness risk gauge (lower is better).
-- Alternative-route ratio trend (higher is better).
-- Query-to-route table for recent selections.
-- Neural map and route constellation for memory graph exploration.
-- Live route rendering with selected vs alternative paths.
+## How to Use Daily (Non-Technical)
 
-## Dopamine Reinforcement Loop (Practical)
+1. Ask Cursor your normal task question.
+2. Let smart search propose relevant and alternative memory routes.
+3. Check dashboard if needed to see route quality.
+4. After result is used, log feedback:
 
-This project uses a practical reinforcement loop to improve retrieval quality over time:
+```powershell
+.\mempalace-log-feedback.ps1 -Helped yes -MinutesSaved 10 -Note "Correct fix path found quickly"
+```
 
-- If memory **helped**, route confidence increases.
-- If memory **did not help**, route confidence decreases.
-- `minutes_saved` adds practical value weighting.
+5. Repeat. The system gets better from real outcomes.
 
-These signals update `help_score`, which is blended with semantic similarity and recency during smart search reranking. The goal is simple: improve future answers based on real outcomes, not only text similarity.
+## Generic Use Cases
 
-## Data and Privacy Notes
+- **Any codebase memory layer**: backend, frontend, mobile, desktop, infra, data workflows.
+- **Whiteboarding and ideation**: keep idea evolution, decisions, and alternatives in one retrievable memory graph.
+- **Team continuity**: new team members can quickly recover context from previous sessions and decisions.
+- **Decision quality tracking**: see whether memory routes are helping or hurting over time.
 
-- Designed for local-first operation.
-- Runtime telemetry is written to `.mempalace-analytics/`.
-- Local memory indexes (`.mempalace-child/`) should stay out of public repos.
-- Use `.gitignore` to avoid pushing private transcripts, logs, and local stores.
+## File Map
 
-## SEO Keywords
+- `mempalace-smart-search.py` - memory retrieval and route selection logic.
+- `mempalace-dashboard.py` - realtime visual cockpit.
+- `mempalace_analytics.py` - shared analytics helpers.
+- `mempalace-feedback.py` - feedback and score updates.
+- `mempalace-dashboard.ps1` - dashboard launcher.
+- `mempalace-refresh-child.ps1` - project code memory refresh (script name can stay as-is).
+- `mempalace-refresh-chats.ps1` - transcript memory refresh.
+- `.cursor/skills/mempalace-neural-memory/SKILL.md` - Cursor skill for this workflow.
 
-Cursor memory system, AI memory dashboard, MemPalace integration, vector memory search, smart retrieval reranking, anti-stickiness AI search, Streamlit AI analytics, WordPress AI development workflow.
+## Data and Privacy
 
-## Use Cases
-
-- Long-running WordPress projects with frequent iterative changes.
-- Teams needing traceability from request to code outcome.
-- AI-assisted coding workflows that require context persistence.
-- Performance-aware memory routing with exploration safeguards.
+- Local-first by design.
+- Runtime telemetry is stored in `.mempalace-analytics/`.
+- Local vector memory lives in `.mempalace-child/`.
+- Keep private transcripts and local stores out of public repos.
 
 ## License
 
 This project is open source and available to everyone under the MIT License.
 
-You are free to use, copy, modify, merge, publish, distribute, sublicense, and sell
-copies of the software, provided that the copyright notice and license text are included.
+You can use, copy, modify, publish, distribute, sublicense, and sell copies of the software, as long as the license notice is included.
 
-For full legal terms, see the `LICENSE` file.
+See `LICENSE` for full legal terms.

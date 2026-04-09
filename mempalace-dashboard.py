@@ -200,32 +200,103 @@ def _new_cluster_sets(events: List[Dict]) -> tuple[Set[str], Set[str]]:
     return seen_rooms, seen_sources
 
 
-def _build_live_route_figure(event: Dict, prior_events: List[Dict]) -> tuple[go.Figure, Dict]:
-    """Lightweight event route graph for latest search with branch/new-cluster signals."""
+def _event_rows(event: Dict, max_rows: int = 24) -> List[Dict]:
     raw_candidates = event.get("candidate_preview", [])
     if isinstance(raw_candidates, list) and raw_candidates:
-        rows = list(raw_candidates)[:24]
-    else:
-        rows = _safe_event_results(event)
+        return list(raw_candidates)[:max_rows]
+    return _safe_event_results(event)[:max_rows]
 
-    seen_rooms, seen_sources = _new_cluster_sets(prior_events)
 
-    wings = sorted({str(r.get("wing", "unknown")) for r in rows})
-    rooms = sorted({f"{str(r.get('wing', 'unknown'))}|{str(r.get('room', 'unknown'))}" for r in rows})
+def _build_live_axis_maps(events_subset: List[Dict]) -> tuple[Dict[str, float], Dict[str, float]]:
+    wings: Set[str] = set()
+    rooms: Set[str] = set()
+    for ev in events_subset:
+        for r in _event_rows(ev):
+            wing = str(r.get("wing", "unknown"))
+            room = str(r.get("room", "unknown"))
+            wings.add(wing)
+            rooms.add(f"{wing}|{room}")
+    wing_y = {w: idx * 1.2 for idx, w in enumerate(sorted(wings))}
+    room_y = {rk: idx * 0.55 for idx, rk in enumerate(sorted(rooms))}
+    return wing_y, room_y
 
-    wing_y = {w: idx * 1.2 for idx, w in enumerate(wings)}
-    room_y = {rk: idx * 0.55 for idx, rk in enumerate(rooms)}
 
-    fig = go.Figure()
-    query_label = (str(event.get("query", "")).strip() or "query")[:80]
+def _add_axis_nodes(fig: go.Figure, wing_y: Dict[str, float], room_y: Dict[str, float], query_label: str) -> None:
     qx, qy = 0.0, 0.0
+    fig.add_trace(
+        go.Scatter(
+            x=[qx],
+            y=[qy],
+            mode="markers+text",
+            marker=dict(size=14, color="#22d3ee"),
+            text=["query"],
+            textposition="top center",
+            hovertext=[query_label],
+            name="query",
+        )
+    )
+    for wing, y in wing_y.items():
+        fig.add_trace(
+            go.Scatter(
+                x=[1.0],
+                y=[y],
+                mode="markers+text",
+                marker=dict(size=10, color="#818cf8"),
+                text=[wing],
+                textposition="middle right",
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
+    for room_key, y in room_y.items():
+        fig.add_trace(
+            go.Scatter(
+                x=[2.0],
+                y=[y],
+                mode="markers+text",
+                marker=dict(size=8, color="#34d399"),
+                text=[room_key.split("|", 1)[1]],
+                textposition="middle right",
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
 
-    branch_rooms = len(rooms)
+
+def _latest_event_stats(rows: List[Dict], seen_rooms: Set[str], seen_sources: Set[str]) -> Dict:
+    branch_rooms = len({f"{str(r.get('wing', 'unknown'))}|{str(r.get('room', 'unknown'))}" for r in rows})
     unique_sources = len({str(r.get("source_file", "unknown")) for r in rows})
     selected_routes = sum(1 for r in rows if bool(r.get("selected", True)))
     alternative_routes = max(0, len(rows) - selected_routes)
     new_room_count = 0
     new_source_count = 0
+    for r in rows:
+        wing = str(r.get("wing", "unknown"))
+        room = str(r.get("room", "unknown"))
+        source = str(r.get("source_file", "unknown"))
+        if f"{wing}|{room}" not in seen_rooms:
+            new_room_count += 1
+        if f"{wing}|{room}|{source}" not in seen_sources:
+            new_source_count += 1
+    return {
+        "branch_rooms": branch_rooms,
+        "unique_sources": unique_sources,
+        "selected_routes": selected_routes,
+        "alternative_routes": alternative_routes,
+        "new_rooms": new_room_count,
+        "new_sources": new_source_count,
+    }
+
+
+def _build_live_route_figure(event: Dict, prior_events: List[Dict]) -> tuple[go.Figure, Dict]:
+    """Single latest event route graph with branch/new-cluster signals."""
+    rows = _event_rows(event)
+    wing_y, room_y = _build_live_axis_maps([event])
+    seen_rooms, seen_sources = _new_cluster_sets(prior_events)
+
+    fig = go.Figure()
+    query_label = (str(event.get("query", "")).strip() or "query")[:80]
+    qx, qy = 0.0, 0.0
 
     for r in rows:
         wing = str(r.get("wing", "unknown"))
@@ -241,10 +312,6 @@ def _build_live_route_figure(event: Dict, prior_events: List[Dict]) -> tuple[go.
         is_new_room = room_key not in seen_rooms
         is_new_source = source_key not in seen_sources
         is_selected = bool(r.get("selected", True))
-        if is_new_room:
-            new_room_count += 1
-        if is_new_source:
-            new_source_count += 1
 
         if is_selected and (is_new_room or is_new_source):
             link_color = "rgba(14,165,233,0.82)"
@@ -271,47 +338,7 @@ def _build_live_route_figure(event: Dict, prior_events: List[Dict]) -> tuple[go.
             )
         )
 
-    fig.add_trace(
-        go.Scatter(
-            x=[qx],
-            y=[qy],
-            mode="markers+text",
-            marker=dict(size=14, color="#22d3ee"),
-            text=["query"],
-            textposition="top center",
-            hovertext=[query_label],
-            name="query",
-        )
-    )
-
-    for wing, y in wing_y.items():
-        fig.add_trace(
-            go.Scatter(
-                x=[1.0],
-                y=[y],
-                mode="markers+text",
-                marker=dict(size=10, color="#818cf8"),
-                text=[wing],
-                textposition="middle right",
-                hoverinfo="skip",
-                showlegend=False,
-            )
-        )
-
-    for room_key, y in room_y.items():
-        fig.add_trace(
-            go.Scatter(
-                x=[2.0],
-                y=[y],
-                mode="markers+text",
-                marker=dict(size=8, color="#34d399"),
-                text=[room_key.split("|", 1)[1]],
-                textposition="middle right",
-                hoverinfo="skip",
-                showlegend=False,
-            )
-        )
-
+    _add_axis_nodes(fig, wing_y, room_y, query_label)
     fig.update_layout(
         title="Live route for latest search (new clusters highlighted)",
         height=460,
@@ -319,15 +346,107 @@ def _build_live_route_figure(event: Dict, prior_events: List[Dict]) -> tuple[go.
         xaxis=dict(visible=False, range=[-0.3, 3.3]),
         yaxis=dict(visible=False),
     )
+    return fig, _latest_event_stats(rows, seen_rooms, seen_sources)
 
-    return fig, {
-        "branch_rooms": branch_rooms,
-        "unique_sources": unique_sources,
-        "selected_routes": selected_routes,
-        "alternative_routes": alternative_routes,
-        "new_rooms": new_room_count,
-        "new_sources": new_source_count,
-    }
+
+def _build_live_route_overlay_figure(events: List[Dict], last_n: int = 20) -> tuple[go.Figure, Dict]:
+    """Overlay last N events: older routes gray/faded, newest bright."""
+    subset = events[-max(1, last_n) :]
+    latest_event = subset[-1]
+    latest_rows = _event_rows(latest_event)
+    seen_rooms, seen_sources = _new_cluster_sets(events[:-1])
+    wing_y, room_y = _build_live_axis_maps(subset)
+
+    fig = go.Figure()
+    qx, qy = 0.0, 0.0
+    total_hist = max(1, len(subset) - 1)
+
+    # Older events first (faded gray), so latest appears on top.
+    for idx, hist_event in enumerate(subset[:-1]):
+        rows = _event_rows(hist_event)
+        fade = (idx + 1) / total_hist
+        alpha_sel = 0.08 + 0.32 * fade
+        alpha_alt = 0.06 + 0.20 * fade
+        q_label = (str(hist_event.get("query", "")).strip() or "history query")[:80]
+        for r in rows:
+            wing = str(r.get("wing", "unknown"))
+            room = str(r.get("room", "unknown"))
+            source = str(r.get("source_file", "unknown"))
+            room_key = f"{wing}|{room}"
+            y_w = wing_y.get(wing, 0.0)
+            y_r = room_y.get(room_key, 0.0)
+            x_w, x_r, x_s = 1.0, 2.0, 3.0
+            y_s = y_r + (hash(source) % 9 - 4) * 0.06
+            is_selected = bool(r.get("selected", True))
+
+            color = f"rgba(107,114,128,{alpha_sel:.3f})" if is_selected else f"rgba(156,163,175,{alpha_alt:.3f})"
+            width = 1.6 if is_selected else 1.0
+            dash = "solid" if is_selected else "dot"
+
+            fig.add_trace(
+                go.Scatter(
+                    x=[qx, x_w, x_r, x_s],
+                    y=[qy, y_w, y_r, y_s],
+                    mode="lines",
+                    line=dict(color=color, width=width, dash=dash),
+                    hoverinfo="text",
+                    text=[q_label, f"wing: {wing}", f"room: {room}", f"source: {source}"],
+                    showlegend=False,
+                )
+            )
+
+    # Latest event bright and contrasty.
+    q_label_latest = (str(latest_event.get("query", "")).strip() or "query")[:80]
+    for r in latest_rows:
+        wing = str(r.get("wing", "unknown"))
+        room = str(r.get("room", "unknown"))
+        source = str(r.get("source_file", "unknown"))
+        room_key = f"{wing}|{room}"
+        source_key = f"{wing}|{room}|{source}"
+        y_w = wing_y.get(wing, 0.0)
+        y_r = room_y.get(room_key, 0.0)
+        x_w, x_r, x_s = 1.0, 2.0, 3.0
+        y_s = y_r + (hash(source) % 9 - 4) * 0.06
+        is_selected = bool(r.get("selected", True))
+        is_new_room = room_key not in seen_rooms
+        is_new_source = source_key not in seen_sources
+
+        if is_selected and (is_new_room or is_new_source):
+            color = "rgba(14,165,233,0.95)"
+            width = 3.5
+            dash = "solid"
+        elif is_selected:
+            color = "rgba(30,41,59,0.82)"
+            width = 2.8
+            dash = "solid"
+        else:
+            color = "rgba(71,85,105,0.68)"
+            width = 1.8
+            dash = "dot"
+
+        fig.add_trace(
+            go.Scatter(
+                x=[qx, x_w, x_r, x_s],
+                y=[qy, y_w, y_r, y_s],
+                mode="lines",
+                line=dict(color=color, width=width, dash=dash),
+                hoverinfo="text",
+                text=[q_label_latest, f"wing: {wing}", f"room: {room}", f"source: {source}"],
+                showlegend=False,
+            )
+        )
+
+    _add_axis_nodes(fig, wing_y, room_y, q_label_latest)
+    fig.update_layout(
+        title="Live route overlay (last 20): newest bright, history faded gray",
+        height=500,
+        margin=dict(l=10, r=10, t=50, b=20),
+        xaxis=dict(visible=False, range=[-0.3, 3.3]),
+        yaxis=dict(visible=False),
+    )
+    stats = _latest_event_stats(latest_rows, seen_rooms, seen_sources)
+    stats["overlay_events"] = len(subset)
+    return fig, stats
 
 
 st.set_page_config(
@@ -557,9 +676,19 @@ st.markdown("---")
 st.subheader("Live route stream")
 
 if events:
-    latest_event = events[-1]
-    prior = events[:-1]
-    live_fig, live_stats = _build_live_route_figure(latest_event, prior)
+    live_mode = st.radio(
+        "Route view mode",
+        options=["Latest only", "Last 20 overlay"],
+        horizontal=True,
+        index=0,
+    )
+
+    if live_mode == "Last 20 overlay":
+        live_fig, live_stats = _build_live_route_overlay_figure(events, last_n=20)
+    else:
+        latest_event = events[-1]
+        prior = events[:-1]
+        live_fig, live_stats = _build_live_route_figure(latest_event, prior)
 
     l1, l2, l3, l4, l5, l6 = st.columns(6)
     l1.metric("Branch rooms (latest)", live_stats["branch_rooms"])
@@ -568,12 +697,13 @@ if events:
     l4.metric("Alternative routes", live_stats["alternative_routes"])
     l5.metric("New room clusters", live_stats["new_rooms"])
     l6.metric("New source clusters", live_stats["new_sources"])
+    if "overlay_events" in live_stats:
+        st.caption(f"Overlay includes last {live_stats['overlay_events']} events.")
 
     st.plotly_chart(live_fig, use_container_width=True)
     st.caption(
         "Auto-refresh draws a new route when new smart-search event is logged. "
-        "Blue solid paths are selected + new clusters, gray solid are selected known routes, "
-        "gray dotted paths are alternatives."
+        "In overlay mode, previous routes are gray and progressively faded, while the newest route is high-contrast."
     )
 else:
     st.info("Live stream will appear after the first smart-search event.")
