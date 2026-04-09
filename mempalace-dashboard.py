@@ -96,6 +96,9 @@ def _compute_stickiness_metrics(events: List[Dict]) -> pd.DataFrame:
     df = pd.DataFrame(rows)
     if not df.empty:
         df = df.sort_values("timestamp_raw")
+        df = df.reset_index(drop=True)
+        # Gapless event axis: prevents large visual holes after long idle periods.
+        df["event_step"] = df.index + 1
     return df
 
 
@@ -583,29 +586,63 @@ if not df_stick.empty:
     a4.metric("Alt route ratio", f"{alt_rate:.1f}%")
     a5.metric("Avg stickiness", f"{stick_recent:.1f}/100")
 
+    axis_mode = st.radio(
+        "Trend axis mode",
+        options=["Gapless (event steps)", "Real time", "By day (compressed)"],
+        horizontal=True,
+        index=0,
+        help="Gapless removes idle gaps; By day compresses events into daily averages.",
+    )
+
+    trend_df = df_stick.tail(300).copy()
+    if axis_mode == "By day (compressed)":
+        trend_df["day"] = trend_df["timestamp_raw"].astype(str).str.slice(0, 10)
+        trend_df = (
+            trend_df.groupby("day", as_index=False)
+            .agg(
+                stickiness_score=("stickiness_score", "mean"),
+                alt_route_ratio=("alt_route_ratio", "mean"),
+                events=("event_step", "count"),
+            )
+            .sort_values("day")
+        )
+        x_col = "day"
+        x_title = "Day"
+        hover_cols = ["events"]
+    elif axis_mode == "Gapless (event steps)":
+        x_col = "event_step"
+        x_title = "Event step"
+        hover_cols = ["timestamp_raw", "query"]
+    else:
+        x_col = "timestamp_raw"
+        x_title = "Timestamp"
+        hover_cols = ["query"]
+
     c1, c2 = st.columns(2)
     with c1:
         fig_stick = px.line(
-            df_stick.tail(200),
-            x="timestamp_raw",
+            trend_df,
+            x=x_col,
             y="stickiness_score",
             title="Stickiness trend (lower is better)",
             markers=True,
             color_discrete_sequence=["#ef4444"],
+            hover_data=hover_cols,
         )
-        fig_stick.update_layout(height=320, yaxis_title="Stickiness (0-100)")
+        fig_stick.update_layout(height=320, xaxis_title=x_title, yaxis_title="Stickiness (0-100)")
         st.plotly_chart(fig_stick, use_container_width=True)
 
     with c2:
         fig_alt = px.line(
-            df_stick.tail(200),
-            x="timestamp_raw",
+            trend_df,
+            x=x_col,
             y="alt_route_ratio",
             title="Alternative route ratio (higher is better)",
             markers=True,
             color_discrete_sequence=["#06b6d4"],
+            hover_data=hover_cols,
         )
-        fig_alt.update_layout(height=320, yaxis_title="Alt route ratio")
+        fig_alt.update_layout(height=320, xaxis_title=x_title, yaxis_title="Alt route ratio")
         st.plotly_chart(fig_alt, use_container_width=True)
 
     gauge_value = float(df_stick["stickiness_score"].tail(30).mean())
