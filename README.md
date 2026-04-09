@@ -128,6 +128,26 @@ I can also manage this directly from the dashboard bottom section:
 - auto-optimization trigger when threshold is exceeded,
 - `Optimize database now` manual button.
 
+## Cursor Setup (Required)
+
+To make the feedback loop work in Cursor, install both:
+
+- Skill: `.cursor/skills/mempalace-neural-memory/SKILL.md`
+- Rule: `.cursor/rules/mempalace-priority-workflow.mdc`
+
+After enabling them, keep this behavior in your workflow:
+
+- At the end of meaningful tasks, Cursor should return quick feedback status:
+  - `helped=yes|no|unknown`
+  - optional `minutes_saved`
+- Then log it:
+
+```powershell
+.\mempalace-log-feedback.ps1 -Helped yes -MinutesSaved 8 -Note "Answer path was useful"
+```
+
+This is what trains route quality over time (not only semantic match, but practical usefulness).
+
 ## How to Use Daily (Non-Technical)
 
 1. I ask Cursor a normal task question.
