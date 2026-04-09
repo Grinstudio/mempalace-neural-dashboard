@@ -4,9 +4,9 @@
 
 ## The Story
 
-This project is inspired by the MemPalace idea shared under the `milla-jovovich` project identity, with a clear Fifth Element spirit: turn raw memory into a living, navigable brain map.
+I built this project on top of the MemPalace idea shared under the `milla-jovovich` project identity, with a clear Fifth Element spirit: turn raw memory into a living, navigable brain map.
 
-We extended that idea into a more practical and more beautiful workflow for real projects:
+I extended that idea into a more practical and more beautiful workflow for real projects:
 
 - clearer memory routing,
 - adaptive anti-stickiness logic,
@@ -15,7 +15,7 @@ We extended that idea into a more practical and more beautiful workflow for real
 
 ## What This Tool Does
 
-It gives Cursor a structured memory layer so it can work better in any project type:
+I use this toolkit to give Cursor a structured memory layer so it can work better in any project type:
 
 - remember code and chat context across sessions,
 - avoid repeating the same narrow memory route,
@@ -23,7 +23,7 @@ It gives Cursor a structured memory layer so it can work better in any project t
 - learn from outcomes (`helped` and `minutes_saved`),
 - explain memory decisions visually in a dashboard.
 
-It is useful for:
+I use it for:
 - software engineering projects of any stack,
 - product discovery and whiteboarding sessions,
 - architecture planning,
@@ -38,7 +38,7 @@ Without a memory strategy, AI assistants can:
 - overfit to one familiar source,
 - return technically correct but less useful answers.
 
-This toolkit fixes that with **smart retrieval + reinforcement + observability**.
+I address that with **smart retrieval + reinforcement + observability**.
 
 ## Core Features
 
@@ -93,11 +93,11 @@ This toolkit fixes that with **smart retrieval + reinforcement + observability**
 
 ### 5) Open the dashboard in browser
 
-Go to:
+Open:
 
 - [http://localhost:8501](http://localhost:8501)
 
-If users ask "where is the board?" -> this is the URL they need.
+Dashboard URL: [http://localhost:8501](http://localhost:8501)
 
 ### 6) Run automatic maintenance
 
@@ -106,23 +106,23 @@ If users ask "where is the board?" -> this is the URL they need.
 ```
 
 This checks thresholds and only archives/trims when needed.
-You can also manage this from the dashboard bottom section:
+I can also manage this directly from the dashboard bottom section:
 - live noise score,
 - auto-optimization trigger when threshold is exceeded,
 - `Optimize database now` manual button.
 
 ## How to Use Daily (Non-Technical)
 
-1. Ask Cursor your normal task question.
-2. Let smart search propose relevant and alternative memory routes.
-3. Check dashboard if needed to see route quality.
-4. After result is used, log feedback:
+1. I ask Cursor a normal task question.
+2. I let smart search propose relevant and alternative memory routes.
+3. I check the dashboard when I need to review route quality.
+4. After I use the result, I log feedback:
 
 ```powershell
 .\mempalace-log-feedback.ps1 -Helped yes -MinutesSaved 10 -Note "Correct fix path found quickly"
 ```
 
-5. Repeat. The system gets better from real outcomes.
+5. I repeat this loop, and the system improves from real outcomes.
 
 ## Generic Use Cases
 
@@ -151,7 +151,7 @@ You can also manage this from the dashboard bottom section:
 
 ## License
 
-This project is open source and available to everyone under the MIT License.
+I publish this project as open source under the MIT License.
 
 You can use, copy, modify, publish, distribute, sublicense, and sell copies of the software, as long as the license notice is included.
 
