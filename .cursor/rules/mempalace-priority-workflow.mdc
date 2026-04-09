@@ -1,0 +1,69 @@
+---
+description: Приоритетное использование MemPalace в этом проекте
+alwaysApply: true
+---
+
+# MemPalace Priority Workflow (Minupidu)
+
+## Priority rule
+
+For this project, actively use MemPalace as the default memory source before answering questions about past decisions, previous fixes, architecture choices, or "why" context.
+
+If memory is relevant, do not guess from current context only.
+
+## Required quick protocol
+
+1. First call `mempalace_status`.
+2. Then use targeted search:
+   - code history: `mempalace_search` with wing `listeo_child`
+   - conversation history: `mempalace_search` with wing `cursor_chats`
+3. For fact changes or explicit structured facts, use KG tools (`mempalace_kg_*`).
+4. After meaningful implementation decisions, suggest storing a short memory card and refreshing index.
+
+## Project-specific memory setup
+
+- MCP server: `mempalace`
+- Palace path: `D:\PROJECTS\Minupidu\FTP\.mempalace-child\palace`
+- Primary wings:
+  - `listeo_child` (child theme code memory)
+  - `cursor_chats` (imported Cursor transcript memory)
+
+## Preferred search behavior
+
+- For implementation details in child theme, search wing `listeo_child` first.
+- For rationale/history of changes, search wing `cursor_chats` first.
+- If query mixes both, run both searches and combine results.
+- For non-trivial searches, prefer smart anti-stickiness retrieval:
+  - `python .\mempalace-smart-search.py "<query>" --palace-path "D:\PROJECTS\Minupidu\FTP\.mempalace-child\palace" --top-k 8 --candidate-k 40`
+- Do not overfit to high help-score memories only; keep alternatives in final candidates.
+
+## Refresh commands to mention after changes
+
+- Child theme code refresh:
+  - `.\mempalace-refresh-child.ps1`
+- Cursor chat refresh:
+  - `.\mempalace-refresh-chats.ps1`
+
+## Decision traceability requirement
+
+When a task has non-trivial tradeoffs, store a short card in:
+
+- `themes/listeo-child/memory-cards/`
+
+using:
+
+- `themes/listeo-child/memory-cards/TEMPLATE.md`
+
+Then refresh child memory index.
+
+## Lightweight analytics
+
+After meaningful tasks where memory was used, suggest tracking impact with:
+
+- `.\mempalace-log-feedback.ps1 -Helped yes|no|unknown -MinutesSaved <int> -Note "<short note>"`
+
+Usage/impact report command:
+
+- `python .\mempalace-stats.py`
+
+Treat analytics as pragmatic and lightweight; avoid heavy manual reporting.
