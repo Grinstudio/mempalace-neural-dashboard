@@ -51,3 +51,33 @@ Stage 1 dashboard now includes near realtime updates and anti-stickiness visuals
 - alternative-route ratio trend,
 - query -> selected routes table,
 - wing-level route diversity panels.
+
+### 5) Auto-maintenance (tracking + cleanup)
+
+Monitor only (no changes):
+
+```powershell
+.\mempalace-maintenance.ps1 -Mode monitor
+```
+
+Auto mode (applies cleanup only if thresholds are exceeded):
+
+```powershell
+.\mempalace-maintenance.ps1 -Mode auto
+```
+
+Force apply immediately:
+
+```powershell
+.\mempalace-maintenance.ps1 -Mode apply
+```
+
+Optional: create Windows scheduled task:
+
+```powershell
+.\mempalace-maintenance-schedule.ps1 -Frequency Daily -Time 03:00
+```
+
+State report is written to:
+
+- `.mempalace-analytics/maintenance-state.json`

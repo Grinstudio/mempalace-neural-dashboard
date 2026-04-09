@@ -4,10 +4,13 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
+import json
 import math
 from pathlib import Path
+import subprocess
+import sys
 from typing import Dict, List, Set
 
 import pandas as pd
@@ -126,6 +129,85 @@ def _compute_adaptive_metrics(events: List[Dict]) -> pd.DataFrame:
     if not df.empty:
         df = df.sort_values("timestamp_raw")
     return df
+
+
+def _load_json_file(path: Path) -> Dict:
+    if not path.exists():
+        return {}
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            obj = json.load(fh)
+        return obj if isinstance(obj, dict) else {}
+    except Exception:
+        return {}
+
+
+def _compute_noise_metrics(df_stick: pd.DataFrame, events_path: Path) -> Dict:
+    if df_stick.empty:
+        return {
+            "score": 0.0,
+            "level": "low",
+            "stickiness_recent": 0.0,
+            "alt_ratio_recent": 0.0,
+            "source_share_recent": 0.0,
+            "events_file_mb": (events_path.stat().st_size / (1024 * 1024)) if events_path.exists() else 0.0,
+        }
+
+    window = df_stick.tail(80)
+    stickiness_recent = float(window["stickiness_score"].mean())
+    alt_ratio_recent = float(window["alt_route_ratio"].mean())
+    source_share_recent = float(window["max_source_share"].mean())
+    events_file_mb = (events_path.stat().st_size / (1024 * 1024)) if events_path.exists() else 0.0
+
+    # Higher means noisier retrieval behavior and more risk of route collapse.
+    score = (
+        0.55 * stickiness_recent
+        + 0.25 * (1.0 - alt_ratio_recent) * 100.0
+        + 0.20 * source_share_recent * 100.0
+    )
+    score = max(0.0, min(100.0, score))
+    if score >= 65.0:
+        level = "high"
+    elif score >= 40.0:
+        level = "moderate"
+    else:
+        level = "low"
+
+    return {
+        "score": score,
+        "level": level,
+        "stickiness_recent": stickiness_recent,
+        "alt_ratio_recent": alt_ratio_recent,
+        "source_share_recent": source_share_recent,
+        "events_file_mb": events_file_mb,
+    }
+
+
+def _run_maintenance(mode: str, analytics_dir: Path) -> Dict:
+    script_path = Path(__file__).with_name("mempalace-maintenance.py")
+    if not script_path.exists():
+        return {"ok": False, "error": f"Maintenance script not found: {script_path}"}
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(script_path), "--analytics-dir", str(analytics_dir), "--mode", mode, "--json"],
+            capture_output=True,
+            text=True,
+            timeout=180,
+            check=False,
+        )
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+    if proc.returncode != 0:
+        return {"ok": False, "error": (proc.stderr or proc.stdout or "Maintenance command failed").strip()}
+
+    payload = {}
+    try:
+        payload = json.loads(proc.stdout)
+    except Exception:
+        payload = {}
+    return {"ok": True, "payload": payload}
 
 
 def _hash_to_xy(seed: str) -> tuple[float, float]:
@@ -908,3 +990,102 @@ if scores:
         st.plotly_chart(fig_scatter, use_container_width=True)
 else:
     st.info("No help-score data yet. Log feedback with `mempalace-log-feedback.ps1`.")
+
+st.markdown("---")
+st.subheader("Noise control and optimization")
+
+events_file = Path(events_path)
+analytics_dir = events_file.parent if events_file.parent else Path(".mempalace-analytics")
+noise = _compute_noise_metrics(df_stick, events_file)
+maintenance_state_path = analytics_dir / "maintenance-state.json"
+maintenance_state = _load_json_file(maintenance_state_path)
+last_run_ts = _parse_ts(str(maintenance_state.get("timestamp", "")))
+
+n1, n2, n3, n4, n5 = st.columns(5)
+n1.metric("Noise score", f"{noise['score']:.1f}/100")
+n2.metric("Noise level", noise["level"])
+n3.metric("Recent stickiness", f"{noise['stickiness_recent']:.1f}")
+n4.metric("Recent alt-ratio", f"{noise['alt_ratio_recent'] * 100:.1f}%")
+n5.metric("Events log size", f"{noise['events_file_mb']:.2f} MB")
+
+c_auto, c_manual = st.columns([2, 1])
+with c_auto:
+    auto_optimize = st.toggle(
+        "Auto optimize when noise is high",
+        value=True,
+        help="Runs safe maintenance for analytics data when noise score crosses threshold.",
+    )
+    auto_threshold = st.slider("Auto optimize threshold", min_value=35, max_value=90, value=65)
+    auto_cooldown_min = st.slider("Auto optimize cooldown (minutes)", min_value=5, max_value=180, value=60)
+with c_manual:
+    st.markdown(" ")
+    run_now = st.button("Optimize database now", use_container_width=True)
+
+if run_now:
+    run_result = _run_maintenance("apply", analytics_dir)
+    if run_result.get("ok"):
+        st.success("Manual optimization completed. Core memory paths are preserved.")
+    else:
+        st.error(f"Manual optimization failed: {run_result.get('error', 'unknown error')}")
+    maintenance_state = _load_json_file(maintenance_state_path)
+    last_run_ts = _parse_ts(str(maintenance_state.get("timestamp", "")))
+
+now_utc = datetime.now(timezone.utc)
+if auto_optimize and noise["score"] >= float(auto_threshold):
+    last_attempt_ts = st.session_state.get("maintenance_auto_attempt_ts")
+    cooldown = timedelta(minutes=int(auto_cooldown_min))
+    enough_time_since_last_state = (not last_run_ts) or ((now_utc - last_run_ts) >= cooldown)
+    enough_time_since_attempt = (not last_attempt_ts) or ((now_utc - last_attempt_ts) >= timedelta(minutes=3))
+    if enough_time_since_last_state and enough_time_since_attempt:
+        auto_result = _run_maintenance("auto", analytics_dir)
+        st.session_state["maintenance_auto_attempt_ts"] = now_utc
+        if auto_result.get("ok"):
+            st.info("Auto optimization executed due to high noise level.")
+        else:
+            st.warning(f"Auto optimization attempted but failed: {auto_result.get('error', 'unknown error')}")
+        maintenance_state = _load_json_file(maintenance_state_path)
+        last_run_ts = _parse_ts(str(maintenance_state.get("timestamp", "")))
+
+if last_run_ts:
+    st.caption(
+        "Last maintenance run: "
+        f"{last_run_ts.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
+    )
+
+state_results = maintenance_state.get("results", {}) if isinstance(maintenance_state, dict) else {}
+if state_results:
+    s_search = state_results.get("search_events", {})
+    s_feedback = state_results.get("feedback", {})
+    s_help = state_results.get("help_scores", {})
+    st.markdown("**Last maintenance impact**")
+    impact_df = pd.DataFrame(
+        [
+            {
+                "target": "search_events",
+                "before": int(s_search.get("before_count", 0)),
+                "after": int(s_search.get("after_count", 0)),
+                "archived": int(s_search.get("archived_count", 0)),
+                "trimmed": int(s_search.get("trimmed_count", 0)),
+            },
+            {
+                "target": "feedback",
+                "before": int(s_feedback.get("before_count", 0)),
+                "after": int(s_feedback.get("after_count", 0)),
+                "archived": int(s_feedback.get("archived_count", 0)),
+                "trimmed": int(s_feedback.get("trimmed_count", 0)),
+            },
+            {
+                "target": "help_scores",
+                "before": int(s_help.get("before_count", 0)),
+                "after": int(s_help.get("after_count", 0)),
+                "archived": 0,
+                "trimmed": int(s_help.get("pruned_count", 0)),
+            },
+        ]
+    )
+    st.dataframe(impact_df, use_container_width=True, hide_index=True)
+
+st.caption(
+    "Optimization is safe: it archives and trims analytics telemetry. "
+    "Core memory index and main retrieval paths remain intact."
+)

@@ -5,6 +5,9 @@ tmp/
 .mempalace-child/
 .mempalace-analytics/*.jsonl
 .mempalace-analytics/last_search.json
+.mempalace-analytics/maintenance-state.json
+.mempalace-analytics/maintenance-config.json
+.mempalace-analytics/archive/
 **/node_modules/
 **/vendor/
 **/.cache/

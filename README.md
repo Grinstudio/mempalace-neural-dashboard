@@ -99,6 +99,18 @@ Go to:
 
 If users ask "where is the board?" -> this is the URL they need.
 
+### 6) Run automatic maintenance
+
+```powershell
+.\mempalace-maintenance.ps1 -Mode auto
+```
+
+This checks thresholds and only archives/trims when needed.
+You can also manage this from the dashboard bottom section:
+- live noise score,
+- auto-optimization trigger when threshold is exceeded,
+- `Optimize database now` manual button.
+
 ## How to Use Daily (Non-Technical)
 
 1. Ask Cursor your normal task question.
