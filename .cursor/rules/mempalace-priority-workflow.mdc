@@ -1,13 +1,13 @@
 ---
-description: Приоритетное использование MemPalace в этом проекте
+description: Priority MemPalace workflow for generic projects
 alwaysApply: true
 ---
 
-# MemPalace Priority Workflow (Minupidu)
+# MemPalace Priority Workflow
 
 ## Priority rule
 
-For this project, actively use MemPalace as the default memory source before answering questions about past decisions, previous fixes, architecture choices, or "why" context.
+Use MemPalace as the default memory source before answering questions about past decisions, previous fixes, architecture choices, or "why" context.
 
 If memory is relevant, do not guess from current context only.
 When applicable, apply project skill `.cursor/skills/mempalace-neural-memory/SKILL.md` first.
@@ -15,47 +15,39 @@ When applicable, apply project skill `.cursor/skills/mempalace-neural-memory/SKI
 ## Required quick protocol
 
 1. First call `mempalace_status`.
-2. Then use targeted search:
-   - code history: `mempalace_search` with wing `listeo_child`
-   - conversation history: `mempalace_search` with wing `cursor_chats`
+2. Then use targeted search by appropriate wing:
+   - project code wing (for implementation details)
+   - transcript/chat wing (for rationale/history)
 3. For fact changes or explicit structured facts, use KG tools (`mempalace_kg_*`).
-4. After meaningful implementation decisions, suggest storing a short memory card and refreshing index.
+4. After each MemPalace tool call, append a live route pulse event so dashboard map updates immediately:
+   - `.\mempalace-touch.ps1 -Tool "<tool_name>" -Query "<short context>"`
+5. After meaningful implementation decisions, suggest storing a short memory card and refreshing index.
 
-## Project-specific memory setup
+## Memory setup
 
 - MCP server: `mempalace`
-- Palace path: `D:\PROJECTS\Minupidu\FTP\.mempalace-child\palace`
-- Primary wings:
-  - `listeo_child` (child theme code memory)
-  - `cursor_chats` (imported Cursor transcript memory)
+- Palace path: use your local `MEMPALACE_PALACE_PATH`
+- Primary wings: choose names during setup (for example `project_code`, `cursor_chats`)
 
 ## Preferred search behavior
 
-- For implementation details in child theme, search wing `listeo_child` first.
-- For rationale/history of changes, search wing `cursor_chats` first.
+- For implementation details, search project-code wing first.
+- For rationale/history of changes, search transcript/chat wing first.
 - If query mixes both, run both searches and combine results.
 - For non-trivial searches, prefer smart anti-stickiness retrieval:
-  - `python .\mempalace-smart-search.py "<query>" --palace-path "D:\PROJECTS\Minupidu\FTP\.mempalace-child\palace" --top-k 8 --candidate-k 40`
+  - `python .\mempalace-smart-search.py "<query>" --top-k 8 --candidate-k 40`
+- For non-search MemPalace calls (status/list/KG), emit touch pulse right after call:
+  - `.\mempalace-touch.ps1 -Tool "mempalace_status|mempalace_list_wings|mempalace_kg_*" -Query "<short context>"`
 - Do not overfit to high help-score memories only; keep alternatives in final candidates.
 
 ## Refresh commands to mention after changes
 
-- Child theme code refresh:
-  - `.\mempalace-refresh-child.ps1`
-- Cursor chat refresh:
-  - `.\mempalace-refresh-chats.ps1`
+- Generic refresh from selected folders:
+  - `.\mempalace-refresh-index.ps1`
 
 ## Decision traceability requirement
 
-When a task has non-trivial tradeoffs, store a short card in:
-
-- `themes/listeo-child/memory-cards/`
-
-using:
-
-- `themes/listeo-child/memory-cards/TEMPLATE.md`
-
-Then refresh child memory index.
+When a task has non-trivial tradeoffs, store a short memory card in a project path (for example `memory-cards/`), then refresh index.
 
 ## Lightweight analytics
 

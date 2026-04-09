@@ -1,3 +1,7 @@
+param(
+    [switch]$ChildOnly
+)
+
 $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -22,3 +26,12 @@ Write-Host "Refreshing MemPalace index for child theme..."
 Write-Host ""
 Write-Host "Current status:"
 & $python -m mempalace status
+
+if (-not $ChildOnly) {
+    $toolingScript = Join-Path $projectRoot "mempalace-refresh-tooling.ps1"
+    if (Test-Path $toolingScript) {
+        Write-Host ""
+        Write-Host "Refreshing tooling memory..." -ForegroundColor Cyan
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $toolingScript
+    }
+}

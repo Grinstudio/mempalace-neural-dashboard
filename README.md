@@ -67,22 +67,39 @@ I address that with **smart retrieval + reinforcement + observability**.
 
 ## Very Simple Setup (Windows)
 
-### 1) Refresh project code memory
+### 1) Choose folders to index (one-time setup)
+
+```powershell
+.\mempalace-setup-indexing.ps1
+```
+
+This asks you which folders to scan, which `wing` name to use for each folder, and saves config to local `mempalace-indexing.json`.
+
+### 2) Refresh memory from your selected folders
+
+```powershell
+.\mempalace-refresh-index.ps1
+```
+
+This is generic for any project structure.
+
+Optional shortcuts (if your repo has these helper scripts):
 
 ```powershell
 .\mempalace-refresh-child.ps1
+.\mempalace-refresh-chats.ps1
 ```
 
-### 2) Refresh chat memory
+If your setup includes a dedicated project refresh script with optional scope:
 
 ```powershell
-.\mempalace-refresh-chats.ps1
+.\mempalace-refresh-child.ps1 -ChildOnly
 ```
 
 ### 3) Run one smart search
 
 ```powershell
-.\.venv-mempalace\Scripts\python.exe .\mempalace-smart-search.py "your query here" --palace-path "D:\PROJECTS\Minupidu\FTP\.mempalace-child\palace" --top-k 10 --candidate-k 40
+.\.venv-mempalace\Scripts\python.exe .\mempalace-smart-search.py "your query here" --top-k 10 --candidate-k 40
 ```
 
 ### 4) Start the dashboard
@@ -138,8 +155,11 @@ I can also manage this directly from the dashboard bottom section:
 - `mempalace_analytics.py` - shared analytics helpers.
 - `mempalace-feedback.py` - feedback and score updates.
 - `mempalace-dashboard.ps1` - dashboard launcher.
-- `mempalace-refresh-child.ps1` - project code memory refresh (script name can stay as-is).
-- `mempalace-refresh-chats.ps1` - transcript memory refresh.
+- `mempalace-setup-indexing.ps1` - interactive folder selection for indexing.
+- `mempalace-refresh-index.ps1` - refresh index from saved folder list.
+- `mempalace-refresh-tooling.ps1` - focused tooling-code refresh (if present in your setup).
+- `mempalace-refresh-child.ps1` - project code refresh shortcut (optional, repo-specific name).
+- `mempalace-refresh-chats.ps1` - transcript refresh shortcut (optional).
 - `.cursor/skills/mempalace-neural-memory/SKILL.md` - Cursor skill for this workflow.
 
 ## Data and Privacy

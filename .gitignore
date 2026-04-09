@@ -8,6 +8,8 @@ tmp/
 .mempalace-analytics/maintenance-state.json
 .mempalace-analytics/maintenance-config.json
 .mempalace-analytics/archive/
+mempalace-indexing.json
+.cursor/mcp.json
 **/node_modules/
 **/vendor/
 **/.cache/

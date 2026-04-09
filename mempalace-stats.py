@@ -64,12 +64,23 @@ def main() -> None:
     events = load_search_events(events_path)
     if events:
         total = len(events)
-        avg_sources = sum(e.get("unique_sources", 0) for e in events) / total
-        avg_wings = sum(e.get("unique_wings", 0) for e in events) / total
-        explore = sum(1 for e in events if e.get("explore_injected")) / total * 100.0
+        smart = sum(1 for e in events if str(e.get("event_kind", "smart_search")) == "smart_search")
+        touch = sum(1 for e in events if str(e.get("event_kind", "")) == "tool_touch")
+        truth_events = [
+            e
+            for e in events
+            if str(e.get("event_kind", "smart_search")) == "smart_search"
+            and isinstance(e.get("results", []), list)
+            and len(e.get("results", [])) > 0
+        ]
+        truth_total = len(truth_events)
+        avg_sources = (sum(e.get("unique_sources", 0) for e in truth_events) / truth_total) if truth_total else 0.0
+        avg_wings = (sum(e.get("unique_wings", 0) for e in truth_events) / truth_total) if truth_total else 0.0
+        explore = (sum(1 for e in truth_events if e.get("explore_injected")) / truth_total * 100.0) if truth_total else 0.0
         print("")
         print("Anti-stickiness:")
-        print(f"  Smart searches logged: {total}")
+        print(f"  Route events logged: {total} (smart: {smart}, touch: {touch})")
+        print(f"  Truth vector events: {truth_total}")
         print(f"  Avg unique sources per search: {avg_sources:.2f}")
         print(f"  Avg unique wings per search: {avg_wings:.2f}")
         print(f"  Explore injection rate: {explore:.1f}%")

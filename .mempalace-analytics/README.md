@@ -5,7 +5,7 @@ This folder stores lightweight local analytics for memory usage.
 ## Files
 
 - `feedback.jsonl` (created automatically): manual impact feedback entries.
-- `search_events.jsonl` (auto): smart-search telemetry.
+- `search_events.jsonl` (auto): route telemetry (smart-search + tool-touch pulses).
 - `help_scores.json` (auto): learned usefulness scores per memory source.
 
 ## Commands
@@ -33,7 +33,27 @@ This shows:
 ### 3) Smart anti-stickiness search
 
 ```powershell
-python .\mempalace-smart-search.py "submit flow package step" --palace-path "D:\PROJECTS\Minupidu\FTP\.mempalace-child\palace" --wing cursor_chats --top-k 8
+python .\mempalace-smart-search.py "submit flow package step" --wing cursor_chats --top-k 8
+```
+
+### 3.1) Configure what to index (generic projects)
+
+One-time setup:
+
+```powershell
+.\mempalace-setup-indexing.ps1
+```
+
+Then refresh all configured folders:
+
+```powershell
+.\mempalace-refresh-index.ps1
+```
+
+For this repository you can also run focused tooling refresh:
+
+```powershell
+.\mempalace-refresh-tooling.ps1
 ```
 
 ### 4) Visual dashboard
@@ -43,6 +63,12 @@ python .\mempalace-smart-search.py "submit flow package step" --palace-path "D:\
 ```
 
 Opens a modern local dashboard with usage, impact, diversity, and help-score trends.
+
+To force immediate live-map update after any MemPalace tool call:
+
+```powershell
+.\mempalace-touch.ps1 -Tool "mempalace_status" -Query "health check"
+```
 
 Stage 1 dashboard now includes near realtime updates and anti-stickiness visuals:
 
