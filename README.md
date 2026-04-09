@@ -87,6 +87,16 @@ AI assistants can lose context across sessions, repeat suboptimal paths, or over
 - Neural map and route constellation for memory graph exploration.
 - Live route rendering with selected vs alternative paths.
 
+## Dopamine Reinforcement Loop (Practical)
+
+This project uses a practical reinforcement loop to improve retrieval quality over time:
+
+- If memory **helped**, route confidence increases.
+- If memory **did not help**, route confidence decreases.
+- `minutes_saved` adds practical value weighting.
+
+These signals update `help_score`, which is blended with semantic similarity and recency during smart search reranking. The goal is simple: improve future answers based on real outcomes, not only text similarity.
+
 ## Data and Privacy Notes
 
 - Designed for local-first operation.
@@ -107,4 +117,9 @@ Cursor memory system, AI memory dashboard, MemPalace integration, vector memory 
 
 ## License
 
-Add your preferred license file (for example, MIT) before broad public distribution.
+This project is open source and available to everyone under the MIT License.
+
+You are free to use, copy, modify, merge, publish, distribute, sublicense, and sell
+copies of the software, provided that the copyright notice and license text are included.
+
+For full legal terms, see the `LICENSE` file.

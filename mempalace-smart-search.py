@@ -25,6 +25,7 @@ from mempalace_analytics import (
     DEFAULT_SEARCH_EVENTS,
     ensure_analytics_dir,
     load_help_scores,
+    load_search_events,
 )
 
 
@@ -144,17 +145,127 @@ def enforce_source_cap(items: List[Dict], cap: int) -> List[Dict]:
     return output
 
 
+def event_stickiness(event: Dict, prev_sources: set | None) -> Tuple[float, set]:
+    results = event.get("results", [])
+    if not isinstance(results, list) or not results:
+        return 0.0, set()
+
+    source_counter: Dict[str, int] = {}
+    for r in results:
+        src = str(r.get("source_file", "unknown"))
+        source_counter[src] = source_counter.get(src, 0) + 1
+
+    total = len(results)
+    max_source_share = max(source_counter.values()) / total if total else 0.0
+    current_sources = set(source_counter.keys())
+    overlap_prev = (
+        len(current_sources & prev_sources) / len(current_sources | prev_sources)
+        if prev_sources and current_sources
+        else 0.0
+    )
+    diversity_norm = len(current_sources) / total if total else 0.0
+    stickiness = 100.0 * (
+        0.55 * max_source_share
+        + 0.30 * (1.0 - diversity_norm)
+        + 0.15 * overlap_prev
+    )
+    return stickiness, current_sources
+
+
+def compute_adaptive_settings(
+    recent_events: List[Dict],
+    base_lambda_mmr: float,
+    base_source_cap: int,
+    adaptive_window: int,
+) -> Dict:
+    if not recent_events:
+        return {
+            "enabled": False,
+            "status": "bootstrap",
+            "recent_stickiness": 0.0,
+            "trend_delta": 0.0,
+            "lambda_mmr_used": base_lambda_mmr,
+            "source_cap_used": base_source_cap,
+            "explore_every_used": 8,
+            "adaptation_strength": 0.0,
+        }
+
+    window = recent_events[-max(3, adaptive_window) :]
+    values: List[float] = []
+    prev_sources: set = set()
+    for event in window:
+        v, prev_sources = event_stickiness(event, prev_sources)
+        if v > 0:
+            values.append(v)
+
+    if not values:
+        return {
+            "enabled": False,
+            "status": "bootstrap",
+            "recent_stickiness": 0.0,
+            "trend_delta": 0.0,
+            "lambda_mmr_used": base_lambda_mmr,
+            "source_cap_used": base_source_cap,
+            "explore_every_used": 8,
+            "adaptation_strength": 0.0,
+        }
+
+    recent_stickiness = sum(values) / len(values)
+    midpoint = max(1, len(values) // 2)
+    first_avg = sum(values[:midpoint]) / len(values[:midpoint])
+    last_avg = sum(values[midpoint:]) / len(values[midpoint:])
+    trend_delta = last_avg - first_avg
+
+    lambda_used = base_lambda_mmr
+    source_cap_used = base_source_cap
+    explore_every_used = 8
+    status = "stable"
+    strength = 0.0
+
+    if recent_stickiness >= 62.0 or trend_delta >= 8.0:
+        lambda_used = clamp(base_lambda_mmr - 0.13, 0.55, 0.9)
+        source_cap_used = max(2, base_source_cap - 1)
+        explore_every_used = 4
+        status = "aggressive"
+        strength = 1.0
+    elif recent_stickiness >= 48.0 or trend_delta >= 3.0:
+        lambda_used = clamp(base_lambda_mmr - 0.07, 0.58, 0.92)
+        source_cap_used = max(2, base_source_cap)
+        explore_every_used = 6
+        status = "active"
+        strength = 0.55
+    elif recent_stickiness <= 30.0 and trend_delta < -2.0:
+        lambda_used = clamp(base_lambda_mmr + 0.02, 0.6, 0.95)
+        source_cap_used = max(3, base_source_cap)
+        explore_every_used = 10
+        status = "relaxed"
+        strength = 0.2
+
+    return {
+        "enabled": True,
+        "status": status,
+        "recent_stickiness": round(recent_stickiness, 2),
+        "trend_delta": round(trend_delta, 2),
+        "lambda_mmr_used": round(lambda_used, 3),
+        "source_cap_used": int(source_cap_used),
+        "explore_every_used": int(explore_every_used),
+        "adaptation_strength": float(round(strength, 2)),
+    }
+
+
 def maybe_inject_explore(
     selected: List[Dict],
     original_candidates: List[Dict],
     top_k: int,
     query: str,
+    explore_every: int,
 ) -> Tuple[List[Dict], bool]:
     if not selected:
         return selected, False
 
     # Deterministic low-rate exploration: every ~8th query hash bucket.
-    inject = (abs(hash(query)) % 8) == 0
+    bucket = max(2, int(explore_every))
+    inject = (abs(hash(query)) % bucket) == 0
     if not inject:
         return selected, False
 
@@ -200,6 +311,8 @@ def main() -> None:
     parser.add_argument("--candidate-k", type=int, default=40)
     parser.add_argument("--lambda-mmr", type=float, default=0.75)
     parser.add_argument("--source-cap", type=int, default=4)
+    parser.add_argument("--adaptive-window", type=int, default=30)
+    parser.add_argument("--no-adaptive", action="store_true", help="Disable auto-adaptive anti-stickiness tuning.")
     parser.add_argument("--events-path", default=str(DEFAULT_SEARCH_EVENTS))
     parser.add_argument("--help-scores-path", default=str(DEFAULT_HELP_SCORES))
     parser.add_argument("--last-search-path", default=str(DEFAULT_LAST_SEARCH))
@@ -232,11 +345,36 @@ def main() -> None:
         item["_help_raw"] = clamp(float(hs.get("score", 0.0)), -1.0, 1.0)
         item["_blended"] = blended_score(item, help_scores, sem_w, help_w, rec_w)
 
+    recent_events = load_search_events(Path(args.events_path))
+    adaptive = compute_adaptive_settings(
+        recent_events=recent_events,
+        base_lambda_mmr=float(args.lambda_mmr),
+        base_source_cap=int(args.source_cap),
+        adaptive_window=int(args.adaptive_window),
+    )
+    if args.no_adaptive:
+        adaptive["enabled"] = False
+        adaptive["status"] = "disabled"
+        adaptive["lambda_mmr_used"] = float(args.lambda_mmr)
+        adaptive["source_cap_used"] = int(args.source_cap)
+        adaptive["explore_every_used"] = 8
+        adaptive["adaptation_strength"] = 0.0
+
+    lambda_mmr_used = float(adaptive["lambda_mmr_used"])
+    source_cap_used = int(adaptive["source_cap_used"])
+    explore_every_used = int(adaptive["explore_every_used"])
+
     # Pre-sort by blended relevance before MMR.
     candidates = sorted(results, key=lambda x: float(x["_blended"]), reverse=True)
-    mmr_out = mmr_select(candidates.copy(), top_k=args.top_k, lambda_mmr=args.lambda_mmr)
-    capped = enforce_source_cap(mmr_out, cap=args.source_cap)[: args.top_k]
-    reranked, explore_injected = maybe_inject_explore(capped, results, args.top_k, args.query)
+    mmr_out = mmr_select(candidates.copy(), top_k=args.top_k, lambda_mmr=lambda_mmr_used)
+    capped = enforce_source_cap(mmr_out, cap=source_cap_used)[: args.top_k]
+    reranked, explore_injected = maybe_inject_explore(
+        capped,
+        results,
+        args.top_k,
+        args.query,
+        explore_every=explore_every_used,
+    )
     selected_keys = {result_key(i) for i in reranked}
 
     candidate_preview = []
@@ -261,6 +399,7 @@ def main() -> None:
         "room": args.room,
         "top_k": args.top_k,
         "candidate_k": args.candidate_k,
+        "adaptive": adaptive,
         "explore_injected": explore_injected,
         "results": [
             {
@@ -285,6 +424,7 @@ def main() -> None:
         "room": args.room,
         "candidate_k": args.candidate_k,
         "top_k": args.top_k,
+        "adaptive": adaptive,
         "explore_injected": explore_injected,
         "unique_sources": len({i.get("source_file") for i in reranked}),
         "unique_wings": len({i.get("wing") for i in reranked}),
@@ -314,6 +454,15 @@ def main() -> None:
             print(f"Wing filter: {args.wing}")
         if args.room:
             print(f"Room filter: {args.room}")
+        ad = output.get("adaptive", {})
+        if ad:
+            print(
+                "Adaptive anti-stickiness: "
+                f"{ad.get('status')} | "
+                f"lambda_mmr={ad.get('lambda_mmr_used')} | "
+                f"source_cap={ad.get('source_cap_used')} | "
+                f"explore_every={ad.get('explore_every_used')}"
+            )
         print(f"Explore injected: {'yes' if explore_injected else 'no'}")
         print("")
         for row in output["results"]:

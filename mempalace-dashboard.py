@@ -99,6 +99,32 @@ def _compute_stickiness_metrics(events: List[Dict]) -> pd.DataFrame:
     return df
 
 
+def _compute_adaptive_metrics(events: List[Dict]) -> pd.DataFrame:
+    rows: List[Dict] = []
+    for event in events:
+        ad = event.get("adaptive", {})
+        if not isinstance(ad, dict) or not ad:
+            continue
+        ts_raw = str(event.get("timestamp", ""))
+        rows.append(
+            {
+                "timestamp_raw": ts_raw,
+                "status": str(ad.get("status", "unknown")),
+                "enabled": bool(ad.get("enabled", False)),
+                "recent_stickiness": float(ad.get("recent_stickiness", 0.0)),
+                "trend_delta": float(ad.get("trend_delta", 0.0)),
+                "lambda_mmr_used": float(ad.get("lambda_mmr_used", 0.0)),
+                "source_cap_used": int(ad.get("source_cap_used", 0)),
+                "explore_every_used": int(ad.get("explore_every_used", 0)),
+                "adaptation_strength": float(ad.get("adaptation_strength", 0.0)),
+            }
+        )
+    df = pd.DataFrame(rows)
+    if not df.empty:
+        df = df.sort_values("timestamp_raw")
+    return df
+
+
 def _hash_to_xy(seed: str) -> tuple[float, float]:
     """Deterministic pseudo-2D coordinates for stable lightweight constellation plot."""
     h = hashlib.md5(seed.encode("utf-8")).hexdigest()
@@ -350,6 +376,7 @@ feedback = collect_feedback_stats(Path(feedback_path))
 events = load_search_events(Path(events_path))
 scores = load_help_scores(Path(scores_path))
 df_stick = _compute_stickiness_metrics(events)
+df_adaptive = _compute_adaptive_metrics(events)
 
 sessions_total = usage["sessions_total"]
 sessions_mem = usage["sessions_with_mempalace"]
@@ -481,6 +508,29 @@ if not df_stick.empty:
     )
     fig_gauge.update_layout(height=280, margin=dict(l=20, r=20, t=50, b=20))
     st.plotly_chart(fig_gauge, use_container_width=True)
+
+    st.markdown("**Adaptive anti-stickiness (auto-tuning state)**")
+    if not df_adaptive.empty:
+        last_ad = df_adaptive.iloc[-1]
+        d1, d2, d3, d4, d5 = st.columns(5)
+        d1.metric("Adaptive mode", str(last_ad["status"]))
+        d2.metric("Adapt strength", f"{float(last_ad['adaptation_strength']) * 100:.0f}%")
+        d3.metric("lambda_mmr in use", f"{float(last_ad['lambda_mmr_used']):.2f}")
+        d4.metric("source_cap in use", int(last_ad["source_cap_used"]))
+        d5.metric("Explore rate", f"1 / {int(last_ad['explore_every_used'])}")
+
+        ad_line = px.line(
+            df_adaptive.tail(200),
+            x="timestamp_raw",
+            y="recent_stickiness",
+            color="status",
+            title="Adaptive controller: recent stickiness baseline (lower is better)",
+            markers=True,
+        )
+        ad_line.update_layout(height=320, yaxis_title="Recent stickiness baseline")
+        st.plotly_chart(ad_line, use_container_width=True)
+    else:
+        st.caption("Adaptive telemetry appears after new smart-search runs with updated script.")
 
     st.markdown("**Query → selected routes (recent)**")
     path_table = df_stick.sort_values("timestamp_raw", ascending=False).head(25)[

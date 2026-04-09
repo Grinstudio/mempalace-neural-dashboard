@@ -10,6 +10,7 @@ alwaysApply: true
 For this project, actively use MemPalace as the default memory source before answering questions about past decisions, previous fixes, architecture choices, or "why" context.
 
 If memory is relevant, do not guess from current context only.
+When applicable, apply project skill `.cursor/skills/mempalace-neural-memory/SKILL.md` first.
 
 ## Required quick protocol
 
