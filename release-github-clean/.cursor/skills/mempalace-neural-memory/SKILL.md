@@ -28,6 +28,19 @@ Do not use this skill for:
 - One-file changes where user already gave exact file + symbol.
 - Repeating the same query immediately without new context.
 
+## Task Size Routing
+
+Before choosing execution mode, classify task size:
+- Small: one file or one obvious fix -> execute directly.
+- Medium: 2-5 files or behavior change risk -> short plan then execute.
+- Large: architecture, migrations, or many moving parts -> clarify-first then staged execution.
+
+Mode switch keywords:
+- `error`, `fails`, `broken`, `bug` -> debug-first path.
+- `slow`, `lag`, `high cpu`, `load` -> performance path.
+- `refactor`, `restructure`, `rework` -> plan-first path.
+- `release`, `deploy`, `production`, `hotfix` -> safety-first path.
+
 ## Core Paths
 
 - Palace path: set by your local MCP env or `MEMPALACE_PALACE_PATH`
@@ -93,6 +106,14 @@ Interpretation guardrail:
 - Prefer targeted `--wing` / `--room` filters before increasing candidate depth.
 - Use larger `candidate-k` only when current retrieval quality is clearly insufficient.
 - Keep route pulse for non-search tools only; smart-search already writes truth telemetry.
+
+## Output Contract
+
+For implementation tasks, return:
+1. What changed (files and purpose).
+2. What was validated (commands/checks).
+3. Residual risks (if any).
+4. Next practical step.
 
 ## Dashboard Use
 

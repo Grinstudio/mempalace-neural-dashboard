@@ -5,15 +5,26 @@ param(
 $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$python = Join-Path $projectRoot ".venv-mempalace\Scripts\python.exe"
+$pythonVenv = Join-Path $projectRoot ".venv-mempalace\Scripts\python.exe"
+$python = $pythonVenv
 $dashboard = Join-Path $projectRoot "mempalace-dashboard.py"
+$preflight = Join-Path $projectRoot "mempalace-preflight.ps1"
 
-if (-not (Test-Path $python)) {
-    Write-Error "Python venv not found: $python"
+if (-not (Test-Path $pythonVenv)) {
+    $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+    if (-not $pythonCmd) {
+        Write-Error "Python runtime not found (.venv-mempalace missing and no 'python' in PATH)."
+    }
+    $python = "python"
+    Write-Host "Using system python from PATH (project venv not found)." -ForegroundColor DarkYellow
 }
 
 if (-not (Test-Path $dashboard)) {
     Write-Error "Dashboard script not found: $dashboard"
+}
+
+if (Test-Path $preflight) {
+    & $preflight -Quiet
 }
 
 $existing = Get-CimInstance Win32_Process | Where-Object {

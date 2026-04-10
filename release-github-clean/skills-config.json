@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "mode": "lean-default",
+  "default_enabled": [
+    "mempalace-neural-memory"
+  ],
+  "optional_skills": {
+    "deep-interview": false,
+    "task-size-routing": false,
+    "code-review-expanded": false,
+    "wordpress-release-safety": true
+  },
+  "notes": "Enable optional skills only when complexity or risk requires them."
+}

@@ -18,6 +18,11 @@ Memory-first policy for implementation tasks:
 - For code edits, verify final exact snippets in files before changing them.
 - Exception: direct user-provided file path or clear runtime error trace can be inspected immediately.
 
+Task-size routing:
+- Small task (1 file, obvious fix): execute directly after quick memory lookup.
+- Medium task (2-5 files, behavior change): short plan then execute.
+- Large task (architecture/refactor/migration): clarify-first and stage implementation.
+
 ## Required quick protocol
 
 1. First call `mempalace_status`.
@@ -51,6 +56,12 @@ Memory-first policy for implementation tasks:
 - Auto telemetry channels:
   - Smart truth: `mcp_auto_utility_v1`
   - Tool touch: `mcp_tool_touch_v1`
+
+Keyword routing hints:
+- `error|fails|broken|bug` -> debug-first.
+- `slow|lag|high cpu|load` -> performance-first.
+- `refactor|restructure|rework` -> plan-first.
+- `release|deploy|production|hotfix` -> safety-first.
 
 ## Performance guardrails
 
