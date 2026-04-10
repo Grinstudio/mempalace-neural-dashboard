@@ -1,10 +1,8 @@
 # MemPalace Neural Dashboard for Cursor
 
-![alt text](MemPalace_Analytics.jpg "Logo Title Text 1")
-
 Local-first memory toolkit for Cursor: smart retrieval, route diversity control, feedback learning, and a visual dashboard that explains what is happening.
 
-![MemPalace Analytics Dashboard](./MemPalace_Analytics.png)
+![MemPalace Analytics](MemPalace_Analytics.jpg "MemPalace Analytics")
 
 ## Why This Exists
 
