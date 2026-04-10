@@ -1,0 +1,25 @@
+wing: ftp
+rooms:
+- name: plugins
+  description: Files from plugins/
+  keywords:
+  - plugins
+  - plugins
+- name: themes
+  description: Files from themes/
+  keywords:
+  - themes
+  - themes
+- name: tmp
+  description: Files from tmp/
+  keywords:
+  - tmp
+  - tmp
+- name: scripts
+  description: Files from Scripts/
+  keywords:
+  - scripts
+  - scripts
+- name: general
+  description: Files that don't fit other rooms
+  keywords: []

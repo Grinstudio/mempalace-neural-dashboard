@@ -1,0 +1,82 @@
+---
+description: Priority MemPalace workflow for generic projects
+alwaysApply: true
+---
+
+# MemPalace Priority Workflow
+
+## Priority rule
+
+Use MemPalace as the default memory source before answering questions about past decisions, previous fixes, architecture choices, or "why" context.
+
+If memory is relevant, do not guess from current context only.
+When applicable, apply project skill `.cursor/skills/mempalace-neural-memory/SKILL.md` first.
+
+Memory-first policy for implementation tasks:
+- Before broad file exploration, run MemPalace smart retrieval first.
+- Start reading code files only after memory returns candidate paths/sources.
+- For code edits, verify final exact snippets in files before changing them.
+- Exception: direct user-provided file path or clear runtime error trace can be inspected immediately.
+
+## Required quick protocol
+
+1. First call `mempalace_status`.
+2. Then run smart retrieval (`mempalace-smart-search.py`) before broad file reads.
+3. Use targeted search by appropriate wing:
+   - project code wing (for implementation details)
+   - transcript/chat wing (for rationale/history)
+4. For fact changes or explicit structured facts, use KG tools (`mempalace_kg_*`).
+5. After non-search MemPalace tool calls, append a live route pulse event so dashboard map updates immediately:
+   - `.\mempalace-touch.ps1 -Tool "<tool_name>" -Query "<short context>"`
+   - Note: `smart-search` already writes truth telemetry; extra touch is not required.
+6. After meaningful implementation decisions, suggest storing a short memory card and refreshing index.
+
+## Memory setup
+
+- MCP server: `user-mempalace` (primary in this workspace)
+- Palace path: use your local `MEMPALACE_PALACE_PATH`
+- Primary wings: choose names during setup (for example `project_code`, `cursor_chats`)
+
+## Preferred search behavior
+
+- For implementation details, search project-code wing first.
+- For rationale/history of changes, search transcript/chat wing first.
+- If query mixes both, run both searches and combine results.
+- For non-trivial searches, prefer smart anti-stickiness retrieval:
+  - `python .\mempalace-smart-search.py "<query>" --top-k 8 --candidate-k 40`
+- For non-search MemPalace calls (status/list/KG), emit touch pulse right after call:
+  - `.\mempalace-touch.ps1 -Tool "mempalace_status|mempalace_list_wings|mempalace_kg_*" -Query "<short context>"`
+- Do not overfit to high help-score memories only; keep alternatives in final candidates.
+- Prefer automatic utility telemetry from smart-search events over manual helped/not-helped scoring.
+- Auto telemetry channels:
+  - Smart truth: `mcp_auto_utility_v1`
+  - Tool touch: `mcp_tool_touch_v1`
+
+## Performance guardrails
+
+- Do not repeat the same query immediately without new context.
+- Prefer narrowing by `wing`/`room` before increasing `candidate-k`.
+- Use larger candidate sets only when utility trend is low or stickiness is high.
+- Avoid broad file scans if memory already gave precise path candidates.
+
+## Refresh commands to mention after changes
+
+- Generic refresh from selected folders:
+  - `.\mempalace-refresh-index.ps1`
+
+## Decision traceability requirement
+
+When a task has non-trivial tradeoffs, store a short memory card in a project path (for example `memory-cards/`), then refresh index.
+
+## Lightweight analytics
+
+After meaningful tasks where memory was used, suggest tracking automatic utility quality with:
+
+- `python .\mempalace-stats.py` (includes auto utility average and band distribution)
+- Dashboard sections: `Auto utility quality`, `Help score health`, `Anti-stickiness`, `Neural path simulator`
+
+Usage/impact report command:
+
+- `python .\mempalace-stats.py`
+
+Treat analytics as pragmatic and lightweight; avoid heavy manual reporting.
